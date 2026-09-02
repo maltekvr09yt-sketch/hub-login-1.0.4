@@ -1,39 +1,39 @@
-name: Build Hub-Login
+name: Automatyczny Build i Release
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - 'v*' # Uruchomi proces automatycznie, gdy nadasz i wypchniesz tag np. v1.0.0
+
+permissions:
+  contents: write # Wymagane uprawnienie, aby automat mógł dodać plik do zakładki Releases
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Pobierz repozytorium
+      # 1. Klonowanie kodu źródłowego do środowiska uruchomieniowego
+      - name: Pobierz kod z repozytorium
         uses: actions/checkout@v4
 
-      - name: Rozpakuj projekt
-        run: |
-          unzip -o hub-login-1.0.0.zip -d project
-
-      - name: Ustaw Java 21
-        uses: actions/setup-java@v5
+      # 2. Instalacja środowiska Java (JDK) - wersja 17 (możesz zmienić na 8, 11 lub 21 w zależności od potrzeb)
+      - name: Skonfiguruj Java JDK
+        uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: '21'
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven' # Przyspiesza kolejne budowania poprzez zapamiętywanie pobranych bibliotek
 
-      - name: Znajdź pom.xml
-        run: |
-          POM=$(find project -name pom.xml -type f | head -n 1)
-          echo "Znaleziono: $POM"
-          echo "POM=$POM" >> "$GITHUB_ENV"
+      # 3. Kompilacja projektu i budowanie pliku .jar za pomocą narzędzia Maven
+      - name: Buduj projekt za pomocą Maven
+        run: mvn clean package --batch-mode
 
-      - name: Zbuduj plugin
-        run: |
-          mvn -f "$POM" clean package
-
-      - name: Udostępnij JAR
-        uses: actions/upload-artifact@v4
+      # 4. Automatyczne tworzenie wydania (Release) na GitHub i wrzucenie gotowego pliku .jar
+      - name: Utwórz GitHub Release i prześlij plik JAR
+        uses: softprops/action-gh-release@v2
         with:
-          name: hub-login-1.0.0
-          path: |
-            project/**/target/hub-login-1.0.0.jar
+          files: target/*.jar # Automatycznie znajdzie i wrzuci wygenerowany plik .jar z folderu docelowego Mavena
+          generate_release_notes: true # Automatycznie wygeneruje listę zmian na podstawie commitów
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Wbudowany token autoryzacyjny GitHub
