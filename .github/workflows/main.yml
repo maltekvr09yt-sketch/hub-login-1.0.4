@@ -1,0 +1,39 @@
+name: Kontrola Jakości (CI)
+
+on:
+  push:
+    branches: [ "main", "master" ] # Uruchom po każdym wypchnięciu kodu do main lub master
+  pull_request:
+    branches: [ "main", "master" ] # Uruchom, gdy ktoś utworzy Pull Request do main lub master
+
+permissions:
+  contents: read # Wystarczy odczyt, ponieważ ten skrypt tylko testuje kod, a nie tworzy wydań
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Klonowanie kodu źródłowego na serwer GitHub Actions
+      - name: Pobierz kod z repozytorium
+        uses: actions/checkout@v4
+
+      # 2. Instalacja środowiska Java (JDK 17 - najczęstsza dla nowszych wtyczek Minecraft)
+      - name: Skonfiguruj Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven' # Zapamiętuje pobrane biblioteki (np. spigot-api), by przyspieszyć kolejne buildy
+
+      # 3. Testowanie i kompilacja projektu za pomocą Mavena
+      - name: Buduj i testuj z Maven
+        run: mvn clean package --batch-mode
+
+      # 4. Zabezpieczenie gotowego pliku .jar jako artefakt (opcjonalnie)
+      # Dzięki temu możesz pobrać plik .jar z zakładki Actions bez tworzenia oficjalnego wydania (Release)
+      - name: Zapisz skompilowany plik JAR jako artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: HubLogin-Dev-Build
+          path: target/*.jar
